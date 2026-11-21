@@ -380,3 +380,25 @@ O Swagger combinado está em `http://127.0.0.1:8000/docs` e sua especificação 
 
 - O dashboard React + TypeScript + Vite será desenvolvido a partir das consultas acima. A atualização disponível hoje é por HTTP periódico. O backend não oferece WebSocket, SSE nem endpoint de totais de páginas.
 - A instalação física, a confirmação do intervalo de envio do console, a escolha do domínio/origem e a publicação do túnel dependem da TI do SESC. Serviços, backup e modelos de configuração já existem no repositório. Para desenvolver o cliente, bastam o simulador e o leitor locais.
+### Indicadores da página Histórico
+
+O painel usa os agregados de temperatura, umidade e vento de `GET /api/v1/stations/{station_id}/summary`. Para contar leituras válidas por sensor e calcular rajada máxima, pressões e radiação, percorre `observations` com os mesmos limites inclusivos e estação. A resposta só é usada após a última página e a conferência dos IDs únicos com `sample_count`. Zeros contam como leituras. Nulos são excluídos das médias aritméticas e dos extremos. Em caso de empate na radiação máxima, aparece a primeira medição do pico em horário de Recife.
+
+O custo da contagem cresce com o número de páginas. Para eliminar essa varredura, uma evolução do endpoint existente `GET /api/v1/stations/{station_id}/summary?start=…&end=…` poderia acrescentar as chaves abaixo. Exemplo de extensão proposta para um período vazio:
+
+```json
+{
+  "valid_counts": {
+    "outdoor_temperature_c": 0, "outdoor_humidity_pct": 0, "wind_speed_ms": 0,
+    "daily_rain_mm": 0, "relative_pressure_hpa": 0, "absolute_pressure_hpa": 0,
+    "solar_radiation_wm2": 0
+  },
+  "wind_gust_max_ms": null,
+  "relative_pressure_hpa": { "min": null, "avg": null, "max": null },
+  "absolute_pressure_hpa": { "min": null, "avg": null, "max": null },
+  "solar_radiation_wm2": { "avg": null, "max": null, "peak_at_utc": null },
+  "rain": { "total_mm": null, "max_daily_mm": null, "wet_days": null }
+}
+```
+
+Cada estatística de chuva exige precipitação atribuível ao intervalo. O backend precisaria de incrementos confiáveis, ou de leituras de fronteira com cobertura e reinicializações conhecidas, além do início do dia pluviométrico da estação. Dias parciais devem considerar apenas a contribuição dentro dos limites. Lacunas ou resets ambíguos devem resultar em `null` para cada estatística afetada. Hoje o painel mostra a contagem de leituras válidas e o último acumulado diário disponível no período, com a data e hora da medição em Recife.

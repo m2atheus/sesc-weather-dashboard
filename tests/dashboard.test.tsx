@@ -235,3 +235,51 @@ it('navega pelas páginas, consulta o histórico, alterna variável e aplica fil
   fireEvent.click(screen.getByRole('link', { name: 'Visão geral' }))
   await screen.findByRole('heading', { name: 'Visão geral' })
 })
+it('resume todas as páginas por variável e acompanha a troca de período', async () => {
+  const first = { ...row, daily_rain_mm: 5, absolute_pressure_hpa: 970, solar_radiation_wm2: 0 }
+  const second = { ...first, id: 42, measured_at_utc: '2026-11-20T18:30:00Z',
+    relative_pressure_hpa: null, absolute_pressure_hpa: 960, solar_radiation_wm2: 650, wind_gust_ms: 8 }
+  const history: WeatherService['history'] = async (_station, period, page) => {
+    const week = Date.parse(period.end) - Date.parse(period.start) > 86400000
+    return { page, page_size: 1, items: page === 1 ? [second] : page === 2 && week ? [first] : [] }
+  }
+  const summary: WeatherService['summary'] = async (...args) => ({
+    ...await service.summary(...args),
+    sample_count: Date.parse(args[1].end) - Date.parse(args[1].start) > 86400000 ? 2 : 1,
+  })
+  visit({ history, summary }, '/historico')
+  const group = within(await screen.findByRole('group', { name: 'Resumo do período inteiro' }))
+  const check = async (label: string, value: string) => {
+    await waitFor(() => expect(group.getByText(label).parentElement!.querySelector('b')?.textContent).toBe(value))
+  }
+  const select = (value: string) => fireEvent.change(screen.getByLabelText('Grandeza meteorológica'), { target: { value } })
+  await check('Medições no período', '1')
+  await check('Temperatura média', '30,5 °C')
+  fireEvent.click(screen.getByRole('button', { name: '7 dias' }))
+  await check('Medições no período', '2')
+  select('humidity')
+  await check('Medições no período', '0')
+  await check('Umidade média', 'Sem dados')
+  select('wind')
+  await check('Velocidade média', '4,2 m/s')
+  await check('Maior rajada', '8 m/s')
+  select('rain')
+  await check('Último acumulado diário', '5 mm')
+  expect(group.getByText('Leitura de 20/11/2026, 15:30 (Recife)')).toBeTruthy()
+  expect(group.getAllByText(/./, { selector: 'b' })).toHaveLength(2)
+  select('pressure')
+  await check('Medições no período', '1')
+  await check('Pressão relativa média', '1.013,2 hPa')
+  select('absolutePressure')
+  await check('Pressão absoluta média', '965 hPa')
+  select('solar')
+  await check('Radiação média', '325 W/m²')
+  await check('Pico de radiação', '650 W/m²')
+  await check('Horário do pico', '20/11/2026, 15:30')
+  fireEvent.click(screen.getByRole('button', { name: 'Tabela' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Próxima página' }))
+  await waitFor(() => expect(screen.getByRole('table').textContent).toContain('12:00'))
+  await check('Radiação média', '325 W/m²')
+  select('temperature')
+  await check('Temperatura máxima', '30,5 °C')
+})

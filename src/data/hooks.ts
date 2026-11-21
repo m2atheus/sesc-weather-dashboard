@@ -72,6 +72,7 @@ export function useHistory(
     enabled: id != null,
     queryFn: ({ signal }) => service.history(id!, period, page, signal),
     staleTime: 60_000,
+    refetchInterval: 300_000,
   })
 }
 export function useSummary(id: number | undefined, period: Period, refresh = false) {

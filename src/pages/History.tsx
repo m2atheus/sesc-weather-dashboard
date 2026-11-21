@@ -10,17 +10,18 @@ import {
 } from 'lucide-react'
 import { Feedback } from '../components/Feedback'
 import { SlidingTabs } from '../components/SlidingTabs'
-import Plot, { variables, type Variable } from '../components/Plot'
+import Plot from '../components/Plot'
+import { variables, type Variable } from '../data/variables'
+import { HistoryIndicators } from '../components/HistoryIndicators'
 import { config } from '../config'
 import { downloadCsv } from '../data/api'
-import { useHistory, useSource, useSummary } from '../data/hooks'
+import { useHistory, useSource } from '../data/hooks'
 import type { Period, Station } from '../data/types'
 import {
   calendarPeriod,
   dateTime,
   dayMs,
   localDay,
-  metric,
   number,
   rollingPeriod,
 } from '../utils/format'
@@ -39,7 +40,6 @@ export default function History({ station }: { station?: Station }) {
   const [variable, setVariable] = useState<Variable>('temperature')
   const [table, setTable] = useState(false)
   const history = useHistory(station?.id, period, page)
-  const summary = useSummary(station?.id, period)
   const [exporting, setExporting] = useState(false)
   const [exportError, setExportError] = useState<unknown>(null)
   const controller = useRef<AbortController | null>(null)
@@ -74,7 +74,6 @@ export default function History({ station }: { station?: Station }) {
   }
   const rows = history.data?.items ?? []
   const v = variables[variable]
-  const totals = summary.data
   return (
     <>
       <div className="page-heading" data-enter>
@@ -165,36 +164,7 @@ export default function History({ station }: { station?: Station }) {
         </p>
       </div>
       <Feedback error={exportError} />
-      {station && (
-        <Feedback
-          busy={summary.isPending}
-          error={summary.error}
-          retry={() => summary.refetch()}
-        />
-      )}
-      {totals && totals.sample_count > 0 && (
-        <div
-          className="summary-grid"
-          role="group"
-          aria-label="Resumo do período inteiro"
-        >
-          {[
-            ['Medições no período', number(totals.sample_count)],
-            ['Temperatura mínima', metric(totals.temperature_min_c, '°C')],
-            ['Temperatura média', metric(totals.temperature_avg_c, '°C')],
-            ['Temperatura máxima', metric(totals.temperature_max_c, '°C')],
-          ].map(([label, val]) => (
-            <div className="panel summary-cell" key={label}>
-              <span>{label}</span>
-              <b
-                className={val === '—' ? 'missing-stat' : undefined}
-              >
-                {val}
-              </b>
-            </div>
-          ))}
-        </div>
-      )}
+      {station && <HistoryIndicators stationId={station.id} period={period} variable={variable} />}
       <section className="panel history-panel">
         <div className="history-controls">
           <div>
