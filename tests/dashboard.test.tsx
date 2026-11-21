@@ -60,12 +60,12 @@ it('atualiza a observação por polling sem recarregar a página', async () => {
   }
 })
 it('renderiza cartões com campos parciais e chuva igual a zero', () => {
-  render(<Metrics row={row} />)
+  const { rerender } = render(<Metrics row={row} />)
   const cards = screen.getAllByRole('article')
   expect(cards).toHaveLength(6)
   expect(
     cards.find((c) => within(c).queryByText('Umidade do ar'))?.textContent,
-  ).toContain('Indisponível')
+  ).toContain('Sensor sem leitura')
   expect(
     cards.find((c) => within(c).queryByText('Precipitação'))?.textContent,
   ).toContain('0 mm')
@@ -73,10 +73,42 @@ it('renderiza cartões com campos parciais e chuva igual a zero', () => {
     cards.find((c) => within(c).queryByText('Pressão atmosférica'))
       ?.textContent,
   ).toContain('1.013,2 hPa')
+  const headings = () => screen.getAllByRole('heading', { level: 3 }).map(h => h.textContent)
+  const initialOrder = headings()
+  expect(initialOrder.indexOf('Precipitação')).toBeLessThan(initialOrder.indexOf('Umidade do ar'))
+  expect(cards.find(c => c.textContent?.includes('Precipitação'))?.textContent).toContain('Última hora: —')
+  rerender(<Metrics row={{ ...row, outdoor_humidity_pct: 0, hourly_rain_mm: 0.4 }} />)
+  expect(headings()).toEqual(initialOrder)
+  expect(screen.getByText(/Última hora: 0,4 mm/)).toBeTruthy()
+})
+it('detecta a queda e a volta do leitor com a mesma medição em cache', async () => {
+  vi.useFakeTimers()
+  let available = true
+  const station = vi.fn<WeatherService['station']>(async (...args) => {
+    if (!available) throw new TypeError('Failed to fetch')
+    return { ...await service.station(...args), communication: 'offline' }
+  })
+  try {
+    visit({ station })
+    await act(async () => { await vi.advanceTimersByTimeAsync(100) })
+    expect(screen.getByText('API disponível')).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Sem comunicação/ })).toBeTruthy()
+    available = false
+    await act(async () => { await vi.advanceTimersByTimeAsync(15_100) })
+    expect(screen.getByText('API indisponível')).toBeTruthy()
+    expect(screen.getByText('Leitura em cache')).toBeTruthy()
+    expect(screen.getByText('30,5')).toBeTruthy()
+    available = true
+    await act(async () => { await vi.advanceTimersByTimeAsync(15_100) })
+    expect(screen.getByText('API disponível')).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Sem comunicação/ })).toBeTruthy()
+  } finally {
+    vi.useRealTimers()
+  }
 })
 it('indica carregamento antes de receber o catálogo', () => {
   visit({ stations: () => new Promise(() => {}) })
-  expect(screen.getByText('Carregando medições…')).toBeTruthy()
+  expect(screen.getByText('Consultando estação…')).toBeTruthy()
 })
 it('identifica a pressão absoluta quando só esse sensor possui leitura', () => {
   render(
@@ -100,16 +132,19 @@ it('permite consultar as 24 horas anteriores à última amostra, mantendo sua pr
     ...(await service.station(7, new AbortController().signal)),
     last_measured_at_utc: end,
   }
-  const history = vi.fn(service.history)
-  visit({ station: async () => stationDetail, history })
-  fireEvent.click(
-    await screen.findByRole('button', { name: 'Ver últimas leituras' }),
-  )
-  await waitFor(() => expect(history.mock.calls.at(-1)?.[1].end).toBe(end))
-  fireEvent.click(
-    screen.getByRole('button', { name: 'Voltar às últimas 24 h' }),
-  )
-  await screen.findByText('Últimas 24 horas · Horário de Recife')
+  const timestamped = { ...row, measured_at_utc: end }
+  const history = vi.fn<WeatherService['history']>(async (_id, _period, page) => ({
+    page, page_size: 1, items: page === 1 ? [timestamped] : [],
+  }))
+  const daily = vi.fn(service.summary)
+  visit({ stations: async () => [stationDetail], latest: async () => timestamped,
+    station: async () => stationDetail, history, summary: daily })
+  await screen.findByText('Exibindo último período ativo')
+  expect(history.mock.calls.some(([, period, page]) => period.end === end && page === 2)).toBe(true)
+  expect(daily.mock.calls.at(-1)?.[1]).toEqual({
+    start: '2020-03-15T03:00:00.000Z', end: '2020-03-16T02:59:59.999999Z',
+  })
+  expect(screen.getByRole('link', { name: /Explorar histórico completo/ }).getAttribute('href')).toBe('/historico')
 })
 it('abre o dia civil de Recife a partir de um histórico vazio', async () => {
   const end = '2020-03-15T02:30:00Z'
@@ -157,7 +192,10 @@ it('mantém o último valor após falha e identifica a origem simulada da API', 
     .mockRejectedValue(new Error('network'))
   visit({ latest })
   await screen.findByText('30,5')
-  expect(screen.getByText('Estação simulada')).toBeTruthy()
+  const badge = screen.getByRole('button', { name: /Simulador.*Detalhes da estação/ })
+  fireEvent.click(badge)
+  expect(screen.getByText('Simulador da estação')).toBeTruthy()
+  fireEvent.click(badge)
   fireEvent.click(screen.getByRole('button', { name: 'Atualizar' }))
   await screen.findByRole('alert')
   expect(screen.getByText('30,5')).toBeTruthy()
@@ -193,7 +231,7 @@ it('navega pelas páginas, consulta o histórico, alterna variável e aplica fil
   await screen.findByRole('columnheader', { name: 'Rajadas (m/s)' })
   expect(screen.getByRole('table').textContent).toContain('4,2')
   fireEvent.click(screen.getByRole('link', { name: 'Sobre' }))
-  await screen.findByRole('heading', { name: 'Sobre o observatório' })
+  await screen.findByRole('heading', { name: 'Sobre a estação' })
   fireEvent.click(screen.getByRole('link', { name: 'Visão geral' }))
   await screen.findByRole('heading', { name: 'Visão geral' })
 })

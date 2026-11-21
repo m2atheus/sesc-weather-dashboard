@@ -5,9 +5,8 @@ import {
   hour,
   localDay,
   metric,
+  readingAge,
 } from '../src/utils/format'
-import { readingState } from '../src/data/hooks'
-import { row, station } from './fixtures'
 
 describe('Apresentação de medidas', () => {
   it.each([
@@ -16,8 +15,8 @@ describe('Apresentação de medidas', () => {
     [0, 'mm', '0 mm'],
     [12.84, 'mm', '12,8 mm'],
     [1013.2, 'hPa', '1.013,2 hPa'],
-    [null, '%', 'Indisponível'],
-    [undefined, '°C', 'Indisponível'],
+    [null, '%', '—'],
+    [undefined, '°C', '—'],
   ] as const)('formata %s %s', (v, unit, expected) =>
     expect(metric(v, unit)).toBe(expected),
   )
@@ -37,25 +36,10 @@ describe('Apresentação de medidas', () => {
     expect(() => calendarPeriod('2026-02-30', '2026-03-01')).toThrow()
   })
 })
-describe('Situação da estação', () => {
-  it('usa a hora da medição exibida para detectar leitura antiga', () => {
-    expect(
-      readingState(
-        station,
-        row,
-        null,
-        Date.parse(row.measured_at_utc) + 180000,
-      ),
-    ).toBe('Medição desatualizada')
-    expect(
-      readingState(station, row, null, Date.parse(row.measured_at_utc)),
-    ).toBe('Dados atualizados')
-  })
-  it('distingue falha da API, estação offline e estação sem registros', () => {
-    expect(readingState(station, null, null)).toBe('Sem medições')
-    expect(
-      readingState({ ...station, communication: 'offline' }, row, null),
-    ).toBe('Estação sem comunicação')
-    expect(readingState(station, row, new Error())).toBe('API indisponível')
-  })
+it('calcula a idade pelo instante real, inclusive com offset explícito', () => {
+  const utc = Date.parse('2026-11-21T23:00:00Z')
+  expect(readingAge('2026-11-18T20:00:00-03:00', utc)).toBe('há 3 dias')
+  expect(readingAge('2026-11-21T22:59:00Z', utc)).toBe('há 1 minuto')
+  expect(readingAge('2026-11-21T23:00:00Z', utc)).toBe('agora')
+  expect(metric(NaN, 'mm')).toBe('—')
 })

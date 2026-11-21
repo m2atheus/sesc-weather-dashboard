@@ -101,16 +101,18 @@ function summary(v: unknown): Summary {
 const json = async (path: string, signal: AbortSignal): Promise<unknown> =>
   (await request(path, signal)).json()
 const route = (id: number) => '/stations/' + id
+const readerSignal = (signal: AbortSignal) =>
+  AbortSignal.any([signal, AbortSignal.timeout(5000)])
 const dates = (period: Period) =>
   new URLSearchParams({ start: period.start, end: period.end })
 export const api: WeatherService = {
   async stations(page, signal) {
-    const data = await json('/stations?page=' + page + '&page_size=25', signal)
+    const data = await json('/stations?page=' + page + '&page_size=25', readerSignal(signal))
     expect(Array.isArray(data))
     return data.map(station)
   },
   async station(id, signal) {
-    return station(await json(route(id), signal))
+    return station(await json(route(id), readerSignal(signal)))
   },
   async latest(id, signal) {
     try {

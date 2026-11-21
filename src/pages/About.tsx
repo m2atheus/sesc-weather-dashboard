@@ -12,11 +12,11 @@ export default function About() {
   return (
     <>
       <header className="page-heading" data-enter>
-        <h1>Sobre o observatório</h1>
+        <h1>Sobre a estação</h1>
       </header>
       <section className="about-intro">
         <div className="about-lead">
-          <h2>A estação meteorológica</h2>
+          <h2>A Ambient Weather WS-2000</h2>
           <p>
             A Ambient Weather WS-2000 mede as condições do ar no local onde está
             instalada. Aqui, visitantes, estudantes e pesquisadores podem

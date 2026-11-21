@@ -17,43 +17,43 @@ export const variables = {
     title: 'Temperatura',
     key: 'outdoor_temperature_c',
     unit: '°C',
-    color: '#a95424',
+    color: 'var(--plot-temperature)',
   },
   humidity: {
     title: 'Umidade relativa',
     key: 'outdoor_humidity_pct',
     unit: '%',
-    color: '#3479bb',
+    color: 'var(--plot-humidity)',
   },
   wind: {
     title: 'Velocidade do vento',
     key: 'wind_speed_ms',
     unit: 'm/s',
-    color: '#167e76',
+    color: 'var(--plot-wind)',
   },
   rain: {
     title: 'Chuva acumulada no dia',
     key: 'daily_rain_mm',
     unit: 'mm',
-    color: '#496eae',
+    color: 'var(--plot-rain)',
   },
   pressure: {
     title: 'Pressão relativa',
     key: 'relative_pressure_hpa',
     unit: 'hPa',
-    color: '#49685a',
+    color: 'var(--plot-pressure)',
   },
   absolutePressure: {
     title: 'Pressão absoluta',
     key: 'absolute_pressure_hpa',
     unit: 'hPa',
-    color: '#49685a',
+    color: 'var(--plot-pressure)',
   },
   solar: {
     title: 'Radiação solar',
     key: 'solar_radiation_wm2',
     unit: 'W/m²',
-    color: '#a67418',
+    color: 'var(--plot-solar)',
   },
 } satisfies Record<
   string,
@@ -76,13 +76,20 @@ export default function Plot({
 }) {
   const style = variables[variable]
   const grad = useId().replace(/:/g, '')
-  const points = useMemo(
-    () =>
-      rows
-        .map((r) => ({ ...r, time: Date.parse(r.measured_at_utc) }))
-        .sort((a, b) => a.time - b.time),
-    [rows],
-  )
+  const points = useMemo(() => {
+    const sorted = rows.map(row => ({ ...row, time: Date.parse(row.measured_at_utc) }))
+      .sort((a, b) => a.time - b.time)
+    const result: (Partial<Observation> & { time: number })[] = []
+    for (const point of sorted) {
+      const previous = result.at(-1)
+      if (previous && point.time - previous.time > 30 * 60_000) {
+        // A null break separates recordings; it has no plotted or tooltip value.
+        result.push({ time: previous.time + (point.time - previous.time) / 2 })
+      }
+      result.push(point)
+    }
+    return result
+  }, [rows])
   if (
     !points.some(
       (p) =>
@@ -100,7 +107,7 @@ export default function Plot({
     )
   const longSpan = points[points.length - 1].time - points[0].time > 86_400_000
   const tick = (v: number) => (longSpan ? dateShort.format(v) : hour(v))
-  const axes = { fontSize: 12, fill: '#435b54', fontFamily: 'inherit' }
+  const axes = { fontSize: 12, fill: 'var(--muted)', fontFamily: 'inherit' }
   return (
     <figure
       aria-label={style.title + ' por horário da medição, em ' + style.unit}
@@ -116,6 +123,7 @@ export default function Plot({
             Rajadas (m/s)
           </span>
         )}
+        {points.length > rows.length && <small>Traçado interrompido em intervalos acima de 30 min</small>}
       </div>
       <div className={'plot ' + (compact ? 'plot-compact' : '')}>
         <ResponsiveContainer
@@ -140,7 +148,7 @@ export default function Plot({
             </defs>
             <CartesianGrid
               vertical={false}
-              stroke="#dfe6eb"
+              stroke="var(--line)"
               strokeDasharray="3 4"
             />
             <XAxis
@@ -171,7 +179,9 @@ export default function Plot({
               formatter={(v, n) => [number(Number(v)) + ' ' + style.unit, n]}
               contentStyle={{
                 borderRadius: 8,
-                borderColor: '#d6e0e6',
+                backgroundColor: 'var(--surface)',
+                borderColor: 'var(--line)',
+                color: 'var(--ink)',
                 fontSize: 14,
               }}
             />
@@ -193,7 +203,7 @@ export default function Plot({
                 type="linear"
                 dataKey="wind_gust_ms"
                 name="Rajadas"
-                stroke="#9b542f"
+                stroke="var(--plot-gust)"
                 strokeDasharray="5 3"
                 strokeWidth={2}
                 fill="none"

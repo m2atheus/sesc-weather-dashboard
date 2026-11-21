@@ -4,25 +4,22 @@ import {
   BookOpen,
   ChartNoAxesCombined,
   ChevronDown,
-  FlaskConical,
   LayoutDashboard,
-  RadioTower,
-  CloudSun,
   RefreshCw,
 } from 'lucide-react'
 import { config } from './config'
-import { api } from './data/api'
+import { api, ApiError } from './data/api'
 import {
   Source,
-  readingState,
   useCurrent,
   useSource,
   useStations,
 } from './data/hooks'
 import type { WeatherService } from './data/types'
-import { dateTime } from './utils/format'
+import { StationStatusBadge } from './components/StationStatusBadge'
 import { Feedback } from './components/Feedback'
 import { SlidingIndicator } from './components/SlidingTabs'
+import { ThemeToggle } from './components/ThemeToggle'
 import Overview from './pages/Overview'
 const History = lazy(() => import('./pages/History'))
 const About = lazy(() => import('./pages/About'))
@@ -59,10 +56,34 @@ export function Dashboard({ toggle }: { toggle: () => void }) {
   const { detail, latest } = useCurrent(listed?.id)
   const station = detail.data ?? listed
   const hasError = catalog.error ?? detail.error ?? latest.error
-  const status =
-    catalog.isSuccess && !listed
-      ? 'Sem estações'
-      : readingState(station, latest.data, hasError)
+  const checks = [catalog, detail, latest]
+  const lastSuccess = Math.max(...checks.map((query) => query.dataUpdatedAt))
+  const lastFailure = checks.reduce((a, b) => a.errorUpdatedAt >= b.errorUpdatedAt ? a : b)
+  const readerError = lastFailure.errorUpdatedAt >= lastSuccess ? lastFailure.error : null
+  let readerStatus = lastSuccess ? 'API disponível' : 'Verificando API…'
+  if (readerError instanceof ApiError && readerError.status === 429) {
+    readerStatus = 'API com limite de consultas'
+  } else if (readerError instanceof ApiError && readerError.status < 500) {
+    readerStatus = 'API respondeu com erro'
+  } else if (readerError) {
+    readerStatus = 'API indisponível'
+  }
+  const checkedAt = Math.max(lastSuccess, lastFailure.errorUpdatedAt)
+  const readerAddress = new URL(config.base, window.location.href).host
+  const previouslyUnavailable = useRef(false)
+  useEffect(() => {
+    if (previouslyUnavailable.current && !readerError && lastSuccess) {
+      // The reader is back. Retry cached failures without waiting for their backoff.
+      if (catalog.isError) void catalog.refetch({ cancelRefetch: false })
+      if (detail.isError) void detail.refetch({ cancelRefetch: false })
+      if (latest.isError) void latest.refetch({ cancelRefetch: false })
+    }
+    previouslyUnavailable.current = Boolean(readerError)
+  }, [
+    readerError, lastSuccess, catalog.isError, catalog.refetch,
+    detail.isError, detail.refetch, latest.isError, latest.refetch,
+  ])
+  const refreshing = catalog.isFetching || detail.isFetching || latest.isFetching
   const fetchTime = latest.dataUpdatedAt
   const main = useRef<HTMLElement>(null)
   const previous = useRef(location.pathname)
@@ -90,6 +111,7 @@ export function Dashboard({ toggle }: { toggle: () => void }) {
     }
   }
   const [name, institution] = config.name.split('|').map((s) => s.trim())
+  const partners = institution?.split(' e ')
   const isDataPage =
     location.pathname === '/' || location.pathname === '/historico'
   return (
@@ -100,11 +122,17 @@ export function Dashboard({ toggle }: { toggle: () => void }) {
       <header className="site-header">
         <div className="wrap header-inner">
           <Link className="brand" to="/" aria-label={config.name}>
-            <span className="brand-symbol">
-              <CloudSun size={30} strokeWidth={1.65} />
+            <img className="brand-symbol" src="/estacao-meteorologica.png" alt="" width="1024" height="1024" />
+            <span className="brand-name">
+              {name === 'Estação Meteorológica' ? (
+                <>Estação<small>Meteorológica</small></>
+              ) : name}
             </span>
-            <span className="brand-name">{name}</span>
-            {institution && <b className="brand-inst">{institution}</b>}
+            {institution && (
+              <span className="brand-inst">
+                {partners?.map((partner) => <span key={partner}>{partner}</span>)}
+              </span>
+            )}
           </Link>
           <nav className="t-tabs-nav" aria-label="Navegação principal">
             <SlidingIndicator selection={location.pathname} />
@@ -123,30 +151,22 @@ export function Dashboard({ toggle }: { toggle: () => void }) {
               </NavLink>
             ))}
           </nav>
+          <ThemeToggle />
         </div>
       </header>
       <div className="context-strip">
         <div className="wrap context-inner">
           <div className="station-identity">
-            <RadioTower size={16} />
-            <span className="station-prefix">Estação</span>
-            {stations.length > 1 ? (
+            <StationStatusBadge station={station} loading={catalog.isPending} failed={Boolean(catalog.error || detail.error || readerError)}
+              demo={demo} toggleDemo={toggle} readerAddress={readerAddress} checkedAt={checkedAt} />
+            {stations.length > 1 && (
               <label className="select-field">
                 <span className="sr-only">Selecionar estação</span>
-                <select
-                  value={listed?.id}
-                  onChange={(e) => setSelected(Number(e.target.value))}
-                >
-                  {stations.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
+                <select value={listed?.id} onChange={(e) => setSelected(Number(e.target.value))}>
+                  {stations.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
                 <ChevronDown size={14} />
               </label>
-            ) : (
-              <b>{station?.name ?? 'WS-2000'}</b>
             )}
             {catalog.hasNextPage && (
               <button
@@ -157,36 +177,20 @@ export function Dashboard({ toggle }: { toggle: () => void }) {
                 Mais estações
               </button>
             )}
-            {(demo || station?.is_simulated) && (
-              <span className="demo-tag">
-                <FlaskConical size={13} />
-                {demo ? 'Demonstração' : 'Estação simulada'}
-              </span>
-            )}
           </div>
           <div className="station-status">
-            {latest.data && (
-              <span className="header-time">
-                Medição em {dateTime(latest.data.measured_at_utc)}
+            {!demo && (
+              <span className={'connection ' + (readerError ? 'failed' : lastSuccess ? 'ok' : '')}
+                role="status">
+                <i />{readerStatus}
               </span>
             )}
-            <span
-              className={
-                'connection ' + (status === 'Dados atualizados' ? 'ok' : '')
-              }
-              role="status"
-            >
-              <i />
-              {status === 'Carregando' ? 'Carregando medições…' : status}
-            </span>
             <button
               className="refresh-action"
               onClick={refresh}
-              disabled={
-                catalog.isFetching || detail.isFetching || latest.isFetching
-              }
+              disabled={refreshing}
             >
-              <RefreshCw size={15} />
+              <RefreshCw className={refreshing ? 'spin' : undefined} size={15} />
               Atualizar
             </button>
           </div>
@@ -213,14 +217,6 @@ export function Dashboard({ toggle }: { toggle: () => void }) {
                 }
               />
             )}
-            {import.meta.env.DEV &&
-              !demo &&
-              (hasError || (!listed && catalog.isSuccess)) && (
-                <button className="demo-action" onClick={toggle}>
-                  <FlaskConical size={16} />
-                  Abrir demonstração com dados simulados
-                </button>
-              )}
           </>
         )}
         <Suspense fallback={<Feedback busy />}>
@@ -231,7 +227,8 @@ export function Dashboard({ toggle }: { toggle: () => void }) {
                 <Overview
                   station={station}
                   row={latest.data}
-                  status={status}
+                  loading={latest.isPending && !hasError && (!catalog.isSuccess || !!listed)}
+                  cached={Boolean(hasError && latest.data)}
                   successAt={fetchTime}
                 />
               }
@@ -258,25 +255,12 @@ export function Dashboard({ toggle }: { toggle: () => void }) {
       <footer>
         <div className="wrap footer-inner">
           <span>
-            <RadioTower size={17} />
+            <span className="footer-mark">
+              <img src="/favicon-estacao.png" alt="" width="24" height="24" />
+            </span>
             {config.name}
           </span>
           <span>Horário de Recife · Unidades métricas</span>
-        </div>
-        <div className="wrap footer-inner footer-meta">
-          <span>
-            {fetchTime
-              ? 'Última consulta bem-sucedida em ' + dateTime(fetchTime)
-              : 'Aguardando consulta às medições'}
-          </span>
-          <div>
-            {import.meta.env.DEV && (
-              <button onClick={toggle}>
-                <FlaskConical size={14} />
-                {demo ? 'Voltar à API' : 'Modo demonstração'}
-              </button>
-            )}
-          </div>
         </div>
       </footer>
     </>

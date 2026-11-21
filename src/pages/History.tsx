@@ -187,7 +187,7 @@ export default function History({ station }: { station?: Station }) {
             <div className="panel summary-cell" key={label}>
               <span>{label}</span>
               <b
-                className={val === 'Indisponível' ? 'missing-stat' : undefined}
+                className={val === '—' ? 'missing-stat' : undefined}
               >
                 {val}
               </b>

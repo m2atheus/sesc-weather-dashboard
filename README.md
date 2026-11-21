@@ -1,4 +1,4 @@
-# Observatório Meteorológico | SESC
+# Estação Meteorológica | SESC e UFRPE/UAST
 
 Painel público das medições da Ambient Weather WS-2000. A aplicação consulta o leitor público FastAPI e apresenta valores métricos em português, com datas no fuso de Recife. O frontend é estático em produção.
 
@@ -18,7 +18,7 @@ Para usar a API, inicie o **leitor público** no projeto Python já instalado. N
 
 ### Demonstração sem equipamento
 
-Em desenvolvimento, selecione **Modo demonstração** no rodapé ou defina `VITE_DEMO_MODE=true` em `.env.local` e reinicie o Vite. O painel identifica a fonte como **Demonstração** e oferece **Voltar à API**. As leituras ilustrativas ficam na memória do navegador. A exportação CSV fica disponível quando o leitor fornece o arquivo.
+Em desenvolvimento, abra os detalhes da estação na barra superior e selecione **Abrir demonstração** ou defina `VITE_DEMO_MODE=true` em `.env.local` e reinicie o Vite. O painel identifica a fonte como **Demonstração** e oferece **Voltar à API**. As leituras ilustrativas ficam na memória do navegador. A exportação CSV fica disponível quando o leitor fornece o arquivo.
 
 Uma estação cadastrada no FastAPI com `is_simulated=true` recebe a identificação **Estação simulada**, inclusive quando as informações vêm pelo HTTP real. Uma falha de conexão mantém a fonte selecionada. O build de produção exclui o serviço de demonstração local.
 
@@ -26,20 +26,20 @@ Uma estação cadastrada no FastAPI com `is_simulated=true` recebe a identifica�
 
 | Página | O que permite consultar |
 | --- | --- |
-| `/` | Temperatura externa e interna, umidade externa, vento, rajada e direção, chuva acumulada, pressão relativa e absoluta, radiação solar, UV e gráfico das últimas leituras de temperatura. |
+| `/` | Temperatura externa, extremos do dia da leitura, umidade externa, vento, rajada e direção, chuva acumulada, pressão relativa e absoluta, radiação solar, UV e gráfico das últimas leituras de temperatura. |
 | `/historico` | Intervalos de 24 horas, 7 ou 30 dias e datas personalizadas. Resumo do período, seis grandezas em gráfico ou tabela, paginação e exportação CSV do período pelo servidor. |
 | `/sobre` | Estação, coleta, interpretação dos dados e imagem institucional fornecida pelo projeto. |
 
-Temperaturas usam °C, vento e rajadas m/s, direção graus, chuva mm, pressão hPa, umidade %, radiação W/m² e UV é adimensional. Zero é exibido como medida. Campos ausentes ou nulos recebem “Indisponível”. A chuva representa o contador transmitido pela estação em cada instante, inclusive quando ele volta a zero. O gráfico preserva lacunas de sensores nulos.
+Temperaturas usam °C, vento e rajadas m/s, direção graus, chuva mm, pressão hPa, umidade %, radiação W/m² e UV é adimensional. Zero é exibido como medida. Campos ausentes ou nulos recebem um travessão. Os cartões identificam sensores sem leitura. A chuva representa o contador transmitido pela estação em cada instante, inclusive quando ele volta a zero. O gráfico preserva lacunas de sensores nulos.
 
 ## Configuração pública
 
 | Variável | Padrão | Uso |
 | --- | --- | --- |
 | `VITE_API_BASE_URL` | DEV `http://127.0.0.1:8080/api/v1`, produção `/api/v1` | Base do serviço público, com o prefixo da API. |
-| `VITE_OBSERVATORY_NAME` | `Observatório Meteorológico \| SESC` | Nome no cabeçalho, título do navegador e rodapé. |
+| `VITE_OBSERVATORY_NAME` | `Estação Meteorológica \| SESC e UFRPE/UAST` | Nome no cabeçalho, título do navegador e rodapé. |
 | `VITE_DEMO_MODE` | `false` | Inicia com demonstração quando o valor é `true` em desenvolvimento. |
-| `VITE_POLL_SECONDS` | `60` | Intervalo das consultas automáticas em aba visível. |
+| `VITE_POLL_SECONDS` | `60` | Intervalo de atualização das medições em aba visível. O painel verifica a disponibilidade do leitor usando o detalhe da estação (ou o catálogo inicial) a cada 15 segundos, ou antes se o intervalo configurado for menor. |
 | `VITE_STALE_SECONDS` | `180` | Idade a partir da qual uma medição exibida é antiga. |
 | `VITE_MAX_PERIOD_DAYS` | `31` | Limite para datas personalizadas e predefinições. Alinhe com `MAX_PERIOD_DAYS` no leitor. |
 
@@ -49,11 +49,11 @@ Os intervalos aceitam inteiros positivos. O Vite incorpora `VITE_*` ao JavaScrip
 
 O TanStack Query compartilha consultas por fonte, estação, período e página. Em aba visível, catálogo, comunicação e última observação são consultados a cada minuto por padrão. O gráfico recente acompanha novas consultas bem-sucedidas. O histórico mantém datas fixas entre páginas. A série utiliza a página de leituras e o resumo utiliza os agregados do servidor para o intervalo inteiro.
 
-O horário de medição vem de `measured_at_utc`. O rodapé informa a última consulta bem-sucedida à observação atual. O detalhe da estação informa a comunicação. Uma retransmissão pode devolver uma leitura antiga mesmo que a estação continue online. A interface distingue atraso, perda de comunicação, falta de registros e falha de acesso à API.
+O horário de medição vem de `measured_at_utc`. O cartão de temperatura mostra a idade e o horário da última leitura em Recife. O indicador da estação abre os detalhes de comunicação e da verificação do leitor. O detalhe da estação informa a comunicação. Uma retransmissão pode devolver uma leitura antiga mesmo que a estação continue online. A interface distingue atraso, perda de comunicação, falta de registros e falha de acesso à API.
 
 Em caso de falha, o cache mantém a última leitura com seu horário. A próxima consulta automática é espaçada e o botão de nova tentativa permanece disponível. O cliente respeita `Retry-After` em 429, inclusive ao repetir manualmente. Os filtros permanecem editáveis após um 422. Requisições de consultas obsoletas recebem sinal de cancelamento.
 
-O leitor fornece páginas de observações e resumos de todo o período. O gráfico mostra até uma página por vez, normalmente 100 pontos, e informa a faixa exibida. A tabela oferece acesso aos valores via teclado e leitor de tela. Os padrões do backend limitam a consulta a 31 dias e o CSV a 5.000 registros. Consulte [o consumo da API](docs/API_CONSUMPTION.md).
+O leitor fornece páginas de observações e resumos de todo o período. A visão geral percorre as páginas das últimas 24 horas ou da janela histórica encerrada na última leitura conhecida. Os traçados têm interrupções quando o intervalo entre amostras ultrapassa 30 minutos. Na tela Histórico, o gráfico mostra uma página por vez e informa a faixa exibida. A tabela oferece acesso aos valores via teclado e leitor de tela. Os padrões do backend limitam a consulta a 31 dias e o CSV a 5.000 registros. Consulte [o consumo da API](docs/API_CONSUMPTION.md).
 
 ## Estrutura e tecnologias
 

@@ -9,6 +9,12 @@ export const Source = createContext<{ service: WeatherService; demo: boolean }>(
 )
 export const useSource = () => useContext(Source)
 
+function readerInterval(error: Error | null) {
+  if (error instanceof ApiError && error.status === 429)
+    return Math.max(1000, error.retryAt - Date.now())
+  return Math.min(config.pollMs, 15_000)
+}
+
 function interval(query: {
   state: { error: Error | null; errorUpdateCount: number }
 }) {
@@ -27,7 +33,11 @@ export function useStations() {
     getNextPageParam: (page, pages) =>
       page.length === 25 ? pages.length + 1 : undefined,
     staleTime: config.pollMs,
-    refetchInterval: interval,
+    // Once a station exists, its detail request also checks reader availability.
+    refetchInterval: (query) =>
+      !demo && !query.state.data?.pages[0]?.length
+        ? readerInterval(query.state.error)
+        : interval(query),
   })
 }
 export function useCurrent(id?: number) {
@@ -37,8 +47,10 @@ export function useCurrent(id?: number) {
     staleTime: config.pollMs,
     refetchInterval: interval,
   }
-  const detail = useQuery({
+  const detail = useQuery<Station>({
     ...options,
+    refetchInterval: demo ? interval : (query) => readerInterval(query.state.error),
+    refetchOnWindowFocus: 'always',
     queryKey: [demo, 'station', id],
     queryFn: ({ signal }) => service.station(id!, signal),
   })
@@ -62,27 +74,33 @@ export function useHistory(
     staleTime: 60_000,
   })
 }
-export function useSummary(id: number | undefined, period: Period) {
+export function useSummary(id: number | undefined, period: Period, refresh = false) {
   const { service, demo } = useSource()
   return useQuery({
     queryKey: [demo, 'summary', id, period],
     enabled: id != null,
     queryFn: ({ signal }) => service.summary(id!, period, signal),
     staleTime: 300_000,
+    refetchInterval: refresh ? 300_000 : false,
   })
 }
-export function readingState(
-  station: Station | undefined,
-  row: Observation | null | undefined,
-  error: unknown,
-  now = Date.now(),
-) {
-  if (error) return 'API indisponível'
-  if (row === undefined) return 'Carregando'
-  if (!row) return 'Sem medições'
-  if (station?.communication === 'offline') return 'Estação sem comunicação'
-  if (station?.communication === 'delayed') return 'Comunicação atrasada'
-  if (now - Date.parse(row.measured_at_utc) >= config.staleMs)
-    return 'Medição desatualizada'
-  return 'Dados atualizados'
+// The overview covers one fixed window. History keeps its existing paged view.
+export function useTemperatureWindow(id: number | undefined, period: Period) {
+  const { service, demo } = useSource()
+  return useQuery({
+    queryKey: [demo, 'temperature-window', id, period],
+    enabled: id != null,
+    queryFn: async ({ signal }) => {
+      const observations = new Map<number, Observation>()
+      for (let page = 1; ; page++) {
+        const result = await service.history(id!, period, page, signal)
+        for (const row of result.items) observations.set(row.id, row)
+        if (result.items.length < result.page_size) break
+      }
+      return { rows: [...observations.values()], period }
+    },
+    staleTime: 60_000,
+    placeholderData: (previous, query) =>
+      query?.queryKey[0] === demo && query.queryKey[2] === id ? previous : undefined,
+  })
 }

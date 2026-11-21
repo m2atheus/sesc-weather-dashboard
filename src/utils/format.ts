@@ -6,24 +6,28 @@ const dateFmt = (options: Intl.DateTimeFormatOptions) =>
   new Intl.DateTimeFormat('pt-BR', { timeZone: timezone, ...options })
 const timeFmt = dateFmt({ hour: '2-digit', minute: '2-digit' })
 const fullFmt = dateFmt({ dateStyle: 'short', timeStyle: 'short' })
-const dayFmt = dateFmt({
-  weekday: 'long',
-  day: 'numeric',
-  month: 'long',
-  year: 'numeric',
-})
+const shortDateFmt = dateFmt({ dateStyle: 'short' })
 const numberFmt = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 })
 export const number = (value?: number | null) =>
-  value == null ? 'Indisponível' : numberFmt.format(value)
+  value == null || !Number.isFinite(value) ? '—' : numberFmt.format(value)
 export const metric = (value: number | null | undefined, unit: string) =>
-  value == null
-    ? 'Indisponível'
+  value == null || !Number.isFinite(value)
+    ? '—'
     : [number(value), unit].filter(Boolean).join(' ')
 export const hour = (date: string | number) => timeFmt.format(new Date(date))
 export const dateTime = (date: string | number) =>
   fullFmt.format(new Date(date))
-export const fullDay = (date: string | number) => dayFmt.format(new Date(date))
+export const shortDate = (date: string | number) => shortDateFmt.format(new Date(date))
 export const dayMs = 86_400_000
+const relativeFmt = new Intl.RelativeTimeFormat('pt-BR')
+export function readingAge(timestamp: string, now = Date.now()) {
+  const delta = Date.parse(timestamp) - now
+  const absolute = Math.abs(delta)
+  if (absolute < 60_000) return 'agora'
+  const [unit, duration] = absolute >= dayMs ? ['day', dayMs] as const
+    : absolute >= 3_600_000 ? ['hour', 3_600_000] as const : ['minute', 60_000] as const
+  return relativeFmt.format(Math.trunc(delta / duration), unit)
+}
 export function rollingPeriod(days: number, end = Date.now()): Period {
   return {
     start: new Date(end - days * dayMs).toISOString(),
