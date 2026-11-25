@@ -14,6 +14,14 @@ export const metric = (value: number | null | undefined, unit: string) =>
   value == null || !Number.isFinite(value)
     ? '—'
     : [number(value), unit].filter(Boolean).join(' ')
+const signedFmt = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1, signDisplay: 'exceptZero' })
+/** Formats a variation with an explicit sign, so its direction never depends on color. */
+export const signedMetric = (value: number, unit: string) =>
+  [signedFmt.format(value), unit].filter(Boolean).join(' ')
+const compassPoints = ['N', 'NE', 'L', 'SE', 'S', 'SO', 'O', 'NO']
+/** Abbreviated pt-BR compass point for a direction in degrees. */
+export const compass = (degrees: number) =>
+  compassPoints[Math.round((((degrees % 360) + 360) % 360) / 45) % 8]
 export const hour = (date: string | number) => timeFmt.format(new Date(date))
 export const dateTime = (date: string | number) =>
   fullFmt.format(new Date(date))

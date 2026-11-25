@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react'
+import { ChevronDown } from 'lucide-react'
 import type { Station } from '../data/types'
 import { dateTime } from '../utils/format'
 
@@ -58,6 +59,7 @@ export function StationStatusBadge({ station, loading, failed, demo, toggleDemo,
       <i className={'station-dot ' + state} aria-hidden="true" />
       <span aria-live="polite">{label}{shortName && <> · <span className="badge-source">{shortName}</span></>}</span>
       <span className="sr-only">Detalhes da estação</span>
+      <ChevronDown size={14} aria-hidden="true" />
     </button>
     <div id={id} className={`badge-details t-dropdown${shown ? ' is-open' : ''}`} inert={!shown}>
       <dl>

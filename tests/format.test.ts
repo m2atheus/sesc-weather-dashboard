@@ -1,12 +1,28 @@
 import { describe, expect, it } from 'vitest'
 import {
   calendarPeriod,
+  compass,
   dateTime,
   hour,
   localDay,
   metric,
   readingAge,
+  signedMetric,
 } from '../src/utils/format'
+
+it('indica o sentido da variação sem depender de cor', () => {
+  expect(signedMetric(0.8, '°C')).toBe('+0,8 °C')
+  expect(signedMetric(-1.25, '°C')).toBe('-1,3 °C')
+  expect(signedMetric(0, '°C')).toBe('0 °C')
+})
+it('converte graus em pontos cardeais', () => {
+  expect(compass(0)).toBe('N')
+  expect(compass(44)).toBe('NE')
+  expect(compass(90)).toBe('L')
+  expect(compass(225)).toBe('SO')
+  expect(compass(350)).toBe('N')
+  expect(compass(-90)).toBe('O')
+})
 
 describe('Apresentação de medidas', () => {
   it.each([
