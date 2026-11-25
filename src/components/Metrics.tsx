@@ -10,7 +10,7 @@ import {
 } from 'lucide-react'
 import type { Observation } from '../data/types'
 import { config } from '../config'
-import { metric, number } from '../utils/format'
+import { compass, metric, number } from '../utils/format'
 
 export function Value({
   value,
@@ -35,7 +35,10 @@ function MetricScale({ value, min, max, unit }: {
   const percent = Math.min(100, Math.max(0, 100 * (value - min) / (max - min)))
   return <div className="metric-scale">
     <span className="scale-track" aria-hidden="true"><i style={{ width: percent + '%' }} /></span>
-    <small>Escala de referência · {number(min)}–{metric(max, unit)}</small>
+    <span className="scale-ends">
+      <span><span className="sr-only">Escala de referência: </span>{number(min)}</span>
+      <span><span className="sr-only">a </span>{metric(max, unit)}</span>
+    </span>
   </div>
 }
 
@@ -45,6 +48,7 @@ type CardProps = {
   color: string
   value?: number | null
   unit: string
+  loading?: boolean
   children: React.ReactNode
   visual?: React.ReactNode
 }
@@ -54,26 +58,37 @@ export function MetricCard({
   color,
   value,
   unit,
+  loading = false,
   children,
   visual,
 }: CardProps) {
+  const missing = !loading && value == null
   return (
-    <article className={'metric-card tone-' + color + (value == null ? ' metric-missing' : '')}>
+    <article
+      className={'metric-card tone-' + color + (missing ? ' metric-missing' : '')}
+      aria-busy={loading || undefined}
+    >
       <div className="card-label">
-        <span className="icon-box">
-          <Icon size={20} strokeWidth={1.7} />
+        <span className="icon-box" aria-hidden="true">
+          <Icon size={18} strokeWidth={1.8} />
         </span>
         <h3>{title}</h3>
       </div>
       <div className="metric-reading">
-        <Value value={value} unit={unit} />
+        {loading ? <span className="skeleton value-skeleton" aria-hidden="true" />
+          : <Value value={value} unit={unit} />}
       </div>
-      {value == null ? <p className="sensor-missing">Sensor sem leitura</p> : visual}
-      <div className="card-detail">{children}</div>
+      {!loading && (missing ? <p className="sensor-missing">Sensor sem leitura</p> : visual)}
+      <div className="card-detail">
+        {loading ? <span className="skeleton detail-skeleton" aria-hidden="true" /> : children}
+      </div>
     </article>
   )
 }
-export default function Metrics({ row }: { row?: Observation | null }) {
+export default function Metrics({ row, loading = false }: {
+  row?: Observation | null
+  loading?: boolean
+}) {
   // Establish the order with the first sample and keep it through subsequent polls.
   const [initialSample, setInitialSample] = useState(row)
   useEffect(() => {
@@ -90,6 +105,7 @@ export default function Metrics({ row }: { row?: Observation | null }) {
       color="blue"
       value={row?.outdoor_humidity_pct}
       unit="%"
+      loading={loading}
       visual={<MetricScale value={row?.outdoor_humidity_pct} min={0} max={100} unit="%" />}
     >
       Umidade relativa externa
@@ -100,16 +116,13 @@ export default function Metrics({ row }: { row?: Observation | null }) {
       color="teal"
       value={row?.wind_speed_ms}
       unit="m/s"
+      loading={loading}
       visual={<MetricScale value={row?.wind_speed_ms} {...config.windScale} unit="m/s" />}
     >
-      {row?.wind_gust_ms == null && direction == null ? (
-        'Velocidade do vento'
-      ) : (
-        <>
-          Rajada {metric(row?.wind_gust_ms, 'm/s')} · Direção{' '}
-          {metric(direction, '°')}
-        </>
-      )}
+      Rajada {metric(row?.wind_gust_ms, 'm/s')} · Direção{' '}
+      {direction == null || !Number.isFinite(direction)
+        ? '—'
+        : `${compass(direction)} (${number(direction)}°)`}
     </MetricCard> },
     { initialValue: first?.daily_rain_mm, card: <MetricCard key="Precipitação"
       title="Precipitação"
@@ -117,6 +130,7 @@ export default function Metrics({ row }: { row?: Observation | null }) {
       color="indigo"
       value={row?.daily_rain_mm}
       unit="mm"
+      loading={loading}
     >
       Acumulado do dia · Última hora:{' '}
       {metric(row?.hourly_rain_mm, 'mm')}
@@ -144,6 +158,7 @@ export default function Metrics({ row }: { row?: Observation | null }) {
           : row?.relative_pressure_hpa
       }
       unit="hPa"
+      loading={loading}
       visual={<MetricScale value={row?.relative_pressure_hpa ?? row?.absolute_pressure_hpa} {...config.pressureScale} unit="hPa" />}
     >
       {useAbsolute ? 'Pressão absoluta' : 'Pressão relativa'}
@@ -157,6 +172,7 @@ export default function Metrics({ row }: { row?: Observation | null }) {
       color="amber"
       value={row?.solar_radiation_wm2}
       unit="W/m²"
+      loading={loading}
     >
       Potência solar por área
     </MetricCard> },
@@ -166,15 +182,16 @@ export default function Metrics({ row }: { row?: Observation | null }) {
       color="orange"
       value={row?.uv_index}
       unit=""
+      loading={loading}
     >
-      Radiação ultravioleta <span>·</span> Adimensional
+      Radiação ultravioleta · Adimensional
     </MetricCard> },
   ]
   return (
     <section aria-labelledby="sensor-title">
       <div className="section-heading">
         <h2 id="sensor-title">Indicadores meteorológicos</h2>
-        <span className="section-rule" />
+        <span className="section-rule" aria-hidden="true" />
       </div>
       <div className="sensor-grid">
         {cards.sort((a, b) => Number(a.initialValue == null) - Number(b.initialValue == null)).map(item => item.card)}

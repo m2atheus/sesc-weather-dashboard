@@ -31,7 +31,7 @@ export function HistoryIndicators({ stationId, period, variable }: {
     }} />
     <div className="summary-grid" role="group" aria-label="Resumo do período inteiro">
       {cards.map(({ title, value, detail }) => (
-        <div className="panel summary-cell" key={title}>
+        <div className="summary-cell" key={title}>
           <span>{title}</span>
           <b className={statusValues.has(value) ? 'missing-stat' : undefined}>{value}</b>
           {detail && <span>{detail}</span>}

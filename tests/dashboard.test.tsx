@@ -81,6 +81,19 @@ it('renderiza cartões com campos parciais e chuva igual a zero', () => {
   expect(headings()).toEqual(initialOrder)
   expect(screen.getByText(/Última hora: 0,4 mm/)).toBeTruthy()
 })
+it('não confunde o carregamento dos cartões com sensor sem leitura', () => {
+  render(<Metrics row={undefined} loading />)
+  const cards = screen.getAllByRole('article')
+  expect(cards).toHaveLength(6)
+  expect(cards.every((card) => card.getAttribute('aria-busy') === 'true')).toBe(true)
+  expect(screen.queryByText('Sensor sem leitura')).toBeNull()
+})
+it('compara a temperatura com a leitura registrada uma hora antes', async () => {
+  const earlier = { ...row, id: 40, measured_at_utc: '2026-11-20T14:00:00Z', outdoor_temperature_c: 29.7 }
+  visit({ history: async () => ({ page: 1, page_size: 100, items: [row, earlier] }) })
+  await screen.findByText('+0,8 °C')
+  expect(screen.getByText('Variação em 1 hora')).toBeTruthy()
+})
 it('detecta a queda e a volta do leitor com a mesma medição em cache', async () => {
   vi.useFakeTimers()
   let available = true

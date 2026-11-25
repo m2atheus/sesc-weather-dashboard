@@ -19,6 +19,14 @@ const dateShort = new Intl.DateTimeFormat('pt-BR', {
   day: '2-digit',
   month: '2-digit',
 })
+const tooltip = {
+  padding: '8px 12px',
+  borderRadius: 8,
+  backgroundColor: 'var(--surface)',
+  border: '1px solid var(--line)',
+  color: 'var(--ink)',
+  fontSize: 13,
+}
 export default function Plot({
   rows,
   variable,
@@ -62,18 +70,22 @@ export default function Plot({
   const longSpan = points[points.length - 1].time - points[0].time > 86_400_000
   const tick = (v: number) => (longSpan ? dateShort.format(v) : hour(v))
   const axes = { fontSize: 12, fill: 'var(--muted)', fontFamily: 'inherit' }
+  const series = variable === 'wind'
   return (
     <figure
       aria-label={style.title + ' por horário da medição, em ' + style.unit}
     >
       <div className="plot-caption">
-        <span>
-          <i style={{ background: style.color }} />
-          {style.title} ({style.unit})
-        </span>
-        {variable === 'wind' && (
+        {/* The compact overview chart has a single series named by its panel title. */}
+        {(!compact || series) && (
           <span>
-            <i className="dashed-key" />
+            <i style={{ background: style.color }} aria-hidden="true" />
+            {style.title} ({style.unit})
+          </span>
+        )}
+        {series && (
+          <span>
+            <i className="dashed-key" aria-hidden="true" />
             Rajadas (m/s)
           </span>
         )}
@@ -83,7 +95,7 @@ export default function Plot({
         <ResponsiveContainer
           width="100%"
           height="100%"
-          initialDimension={{ width: 300, height: compact ? 124 : 315 }}
+          initialDimension={{ width: 300, height: compact ? 168 : 320 }}
         >
           <AreaChart
             data={points}
@@ -100,11 +112,7 @@ export default function Plot({
                 />
               </linearGradient>
             </defs>
-            <CartesianGrid
-              vertical={false}
-              stroke="var(--line)"
-              strokeDasharray="3 4"
-            />
+            <CartesianGrid vertical={false} stroke="var(--line)" />
             <XAxis
               dataKey="time"
               type="number"
@@ -118,7 +126,7 @@ export default function Plot({
               tickMargin={8}
             />
             <YAxis
-              width={compact ? 48 : 76}
+              width={compact ? 56 : 72}
               unit={' ' + style.unit}
               tickFormatter={number}
               domain={['auto', 'auto']}
@@ -131,24 +139,24 @@ export default function Plot({
               isAnimationActive={false}
               labelFormatter={(v) => dateTime(Number(v))}
               formatter={(v, n) => [number(Number(v)) + ' ' + style.unit, n]}
-              contentStyle={{
-                borderRadius: 8,
-                backgroundColor: 'var(--surface)',
-                borderColor: 'var(--line)',
-                color: 'var(--ink)',
-                fontSize: 14,
-              }}
+              cursor={{ stroke: 'var(--line-strong)', strokeWidth: 1 }}
+              contentStyle={tooltip}
+              labelStyle={{ color: 'var(--muted)', marginBottom: 4 }}
+              itemStyle={{ padding: 0, fontWeight: 600 }}
             />
             <Area
               type="linear"
               dataKey={style.key}
               name={style.title}
               stroke={style.color}
-              strokeWidth={2.4}
+              strokeWidth={2}
               fill={'url(#' + grad + ')'}
               dot={
                 points.length === 1 || points.some((p) => p[style.key] == null)
+                  ? { r: 3, strokeWidth: 0, fill: style.color }
+                  : false
               }
+              activeDot={{ r: 4, strokeWidth: 2, stroke: 'var(--surface)', fill: style.color }}
               connectNulls={false}
               isAnimationActive={false}
             />
@@ -159,12 +167,15 @@ export default function Plot({
                 name="Rajadas"
                 stroke="var(--plot-gust)"
                 strokeDasharray="5 3"
-                strokeWidth={2}
+                strokeWidth={1.75}
                 fill="none"
                 dot={
                   points.length === 1 ||
                   points.some((p) => p.wind_gust_ms == null)
+                    ? { r: 3, strokeWidth: 0, fill: 'var(--plot-gust)' }
+                    : false
                 }
+                activeDot={{ r: 4, strokeWidth: 2, stroke: 'var(--surface)', fill: 'var(--plot-gust)' }}
                 connectNulls={false}
                 isAnimationActive={false}
               />

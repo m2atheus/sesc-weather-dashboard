@@ -6,6 +6,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Download,
+  LoaderCircle,
   Table2,
 } from 'lucide-react'
 import { Feedback } from '../components/Feedback'
@@ -83,50 +84,71 @@ export default function History({ station }: { station?: Station }) {
         </div>
         {!demo && (
           <button
-            className="primary-button"
+            type="button"
+            className="btn btn-primary"
             disabled={!station || exporting}
+            aria-busy={exporting}
             onClick={exportData}
           >
-            <Download size={17} />
+            {exporting ? <LoaderCircle className="spin" size={16} aria-hidden="true" />
+              : <Download size={16} aria-hidden="true" />}
             {exporting ? 'Preparando CSV…' : 'Exportar CSV'}
           </button>
         )}
       </div>
-      <div className="panel filter-panel">
-        <div className="filter-top">
-          <h2>
-            <CalendarDays size={18} /> Período
-          </h2>
-          <SlidingTabs
-            className="period-buttons"
-            label="Período de consulta"
-            selection={edit ? 'custom' : preset}
-          >
-            {[1, 7, 30]
-              .filter((d) => d <= config.maxDays)
-              .map((d) => (
-                <button
-                  className="t-tab"
-                  key={d}
-                  aria-pressed={!edit && preset === d}
-                  onClick={() => apply(rollingPeriod(d), d)}
-                >
-                  {d === 1 ? '24 horas' : d + ' dias'}
-                </button>
-              ))}
-            <button
-              className="t-tab"
-              aria-expanded={edit}
-              aria-pressed={edit || preset === 'custom'}
-              onClick={() => setEdit(!edit)}
+      <section className="panel toolbar" aria-label="Filtros da consulta">
+        <div className="toolbar-row">
+          {/* The variable drives both the period summary and the series below. */}
+          <label className="select-field">
+            <span className="field-label">Grandeza meteorológica</span>
+            <select
+              value={variable}
+              onChange={(e) => setVariable(e.target.value as Variable)}
             >
-              Personalizado
-            </button>
-          </SlidingTabs>
+              {Object.entries(variables).map(([key, item]) => (
+                <option key={key} value={key}>
+                  {item.title} ({item.unit})
+                </option>
+              ))}
+            </select>
+            <ChevronDown size={16} aria-hidden="true" />
+          </label>
+          <div className="field">
+            <span className="field-label" aria-hidden="true">Período</span>
+            <SlidingTabs
+              className="period-buttons"
+              label="Período de consulta"
+              selection={edit ? 'custom' : preset}
+            >
+              {[1, 7, 30]
+                .filter((d) => d <= config.maxDays)
+                .map((d) => (
+                  <button
+                    type="button"
+                    className="t-tab"
+                    key={d}
+                    aria-pressed={!edit && preset === d}
+                    onClick={() => apply(rollingPeriod(d), d)}
+                  >
+                    {d === 1 ? '24 horas' : d + ' dias'}
+                  </button>
+                ))}
+              <button
+                type="button"
+                className="t-tab"
+                aria-expanded={edit}
+                aria-pressed={edit || preset === 'custom'}
+                onClick={() => setEdit(!edit)}
+              >
+                Personalizado
+              </button>
+            </SlidingTabs>
+          </div>
         </div>
         {edit && (
           <form
             className="date-form"
+            noValidate
             onSubmit={(e) => {
               e.preventDefault()
               try {
@@ -142,6 +164,8 @@ export default function History({ station }: { station?: Station }) {
                 required
                 type="date"
                 value={from}
+                aria-invalid={validation ? true : undefined}
+                aria-describedby={validation ? 'period-error' : undefined}
                 onChange={(e) => setFrom(e.target.value)}
               />
             </label>
@@ -151,38 +175,34 @@ export default function History({ station }: { station?: Station }) {
                 required
                 type="date"
                 value={to}
+                aria-invalid={validation ? true : undefined}
+                aria-describedby={validation ? 'period-error' : undefined}
                 onChange={(e) => setTo(e.target.value)}
               />
             </label>
-            <button className="primary-button">Aplicar período</button>
-            {validation && <span role="alert">{validation}</span>}
+            <button className="btn btn-primary">Aplicar período</button>
+            {validation && <p id="period-error" className="form-error" role="alert">{validation}</p>}
           </form>
         )}
         <p className="period-caption">
+          <CalendarDays size={15} aria-hidden="true" />
           {dateTime(period.start)} até {dateTime(period.end)} · Horário de
           Recife
         </p>
-      </div>
+      </section>
       <Feedback error={exportError} />
       {station && <HistoryIndicators stationId={station.id} period={period} variable={variable} />}
-      <section className="panel history-panel">
+      <section className="panel history-panel" aria-labelledby="series-title">
         <div className="history-controls">
-          <div>
-            <h2>Série de medições</h2>
-            <label className="select-field">
-              <span className="field-label">Grandeza meteorológica</span>
-              <select
-                value={variable}
-                onChange={(e) => setVariable(e.target.value as Variable)}
-              >
-                {Object.entries(variables).map(([key, item]) => (
-                  <option key={key} value={key}>
-                    {item.title} ({item.unit})
-                  </option>
-                ))}
-              </select>
-              <ChevronDown size={16} />
-            </label>
+          <div className="history-title">
+            <h2 id="series-title">Série de medições</h2>
+            {rows.length > 0 && (
+              <p className="period-caption">
+                {dateTime(rows[rows.length - 1].measured_at_utc)} até{' '}
+                {dateTime(rows[0].measured_at_utc)} · {rows.length}{' '}
+                {rows.length === 1 ? 'medição' : 'medições'} nesta página
+              </p>
+            )}
           </div>
           <SlidingTabs
             className="view-buttons"
@@ -190,19 +210,21 @@ export default function History({ station }: { station?: Station }) {
             selection={table ? 'table' : 'chart'}
           >
             <button
+              type="button"
               className="t-tab"
               aria-pressed={!table}
               onClick={() => setTable(false)}
             >
-              <ChartNoAxesCombined size={16} />
+              <ChartNoAxesCombined size={16} aria-hidden="true" />
               Gráfico
             </button>
             <button
+              type="button"
               className="t-tab"
               aria-pressed={table}
               onClick={() => setTable(true)}
             >
-              <Table2 size={16} />
+              <Table2 size={16} aria-hidden="true" />
               Tabela
             </button>
           </SlidingTabs>
@@ -232,7 +254,8 @@ export default function History({ station }: { station?: Station }) {
             Date.parse(station.last_measured_at_utc) >
               Date.parse(period.end)) && (
             <button
-              className="text-button last-day"
+              type="button"
+              className="btn btn-secondary last-day"
               onClick={() => {
                 const day = localDay(Date.parse(station.last_measured_at_utc!))
                 setFrom(day)
@@ -240,69 +263,65 @@ export default function History({ station }: { station?: Station }) {
                 apply(calendarPeriod(day, day), 'custom')
               }}
             >
-              <CalendarDays size={16} />
+              <CalendarDays size={16} aria-hidden="true" />
               Consultar dia da última medição
             </button>
           )}
-        {rows.length > 0 && (
-          <>
-            <p className="period-caption">
-              {dateTime(rows[rows.length - 1].measured_at_utc)} até{' '}
-              {dateTime(rows[0].measured_at_utc)} · {rows.length}{' '}
-              {rows.length === 1 ? 'medição' : 'medições'} nesta página
-            </p>
-            {table ? (
-              <div className="data-table">
-                <table>
-                  <caption className="sr-only">
-                    Medições da página em ordem decrescente
-                  </caption>
-                  <thead>
-                    <tr>
-                      <th>Data e hora</th>
-                      <th>
-                        {v.title} ({v.unit})
-                      </th>
-                      {variable === 'wind' && <th>Rajadas (m/s)</th>}
+        {rows.length > 0 &&
+          (table ? (
+            <div className="data-table" tabIndex={0} role="region" aria-labelledby="series-title">
+              <table>
+                <caption className="sr-only">
+                  Medições da página em ordem decrescente
+                </caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Data e hora</th>
+                    <th scope="col" className="num">
+                      {v.title} ({v.unit})
+                    </th>
+                    {variable === 'wind' && <th scope="col" className="num">Rajadas (m/s)</th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((r) => (
+                    <tr key={r.id}>
+                      <td>{dateTime(r.measured_at_utc)}</td>
+                      <td className="num">{number(r[v.key])}</td>
+                      {variable === 'wind' && (
+                        <td className="num">{number(r.wind_gust_ms)}</td>
+                      )}
                     </tr>
-                  </thead>
-                  <tbody>
-                    {rows.map((r) => (
-                      <tr key={r.id}>
-                        <td>{dateTime(r.measured_at_utc)}</td>
-                        <td>{number(r[v.key])}</td>
-                        {variable === 'wind' && (
-                          <td>{number(r.wind_gust_ms)}</td>
-                        )}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <Plot variable={variable} rows={rows} />
-            )}
-          </>
-        )}
-        <div className="pagination">
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <Plot variable={variable} rows={rows} />
+          ))}
+        <nav className="pagination" aria-label="Paginação das medições">
           <span>Página {page} · Mais recentes primeiro</span>
           <div>
             <button
+              type="button"
+              className="btn btn-secondary"
               aria-label="Página anterior"
               disabled={page === 1}
               onClick={() => setPage(page - 1)}
             >
-              <ChevronLeft size={17} />
+              <ChevronLeft size={17} aria-hidden="true" />
             </button>
             <button
+              type="button"
+              className="btn btn-secondary"
               aria-label="Próxima página"
               disabled={!history.data || rows.length < history.data.page_size}
               onClick={() => setPage(page + 1)}
             >
-              <ChevronRight size={17} />
+              <ChevronRight size={17} aria-hidden="true" />
             </button>
           </div>
-        </div>
+        </nav>
       </section>
     </>
   )

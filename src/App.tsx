@@ -123,7 +123,7 @@ export function Dashboard({ toggle }: { toggle: () => void }) {
       <header className="site-header">
         <div className="wrap header-inner">
           <Link className="brand" to="/" aria-label={config.name}>
-            <img className="brand-symbol" src="/estacao-meteorologica.png" alt="" width="1024" height="1024" />
+            <img className="brand-symbol" src="/estacao-marca.png" alt="" width="160" height="160" />
             <span className="brand-name">
               {name === 'Estação Meteorológica' ? (
                 <>Estação<small>Meteorológica</small></>
@@ -147,7 +147,7 @@ export function Dashboard({ toggle }: { toggle: () => void }) {
               { icon: BookOpen, path: '/sobre', label: 'Sobre' },
             ].map(({ icon: Icon, path, label }) => (
               <NavLink end key={path} to={path}>
-                <Icon size={17} />
+                <Icon size={16} aria-hidden="true" />
                 {label}
               </NavLink>
             ))}
@@ -166,7 +166,7 @@ export function Dashboard({ toggle }: { toggle: () => void }) {
                 <select value={listed?.id} onChange={(e) => setSelected(Number(e.target.value))}>
                   {stations.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
-                <ChevronDown size={14} />
+                <ChevronDown size={14} aria-hidden="true" />
               </label>
             )}
             {catalog.hasNextPage && (
@@ -187,11 +187,13 @@ export function Dashboard({ toggle }: { toggle: () => void }) {
               </span>
             )}
             <button
-              className="refresh-action"
+              type="button"
+              className="btn btn-ghost refresh-action"
               onClick={refresh}
               disabled={refreshing}
+              aria-busy={refreshing}
             >
-              <RefreshCw className={refreshing ? 'spin' : undefined} size={15} />
+              <RefreshCw className={refreshing ? 'spin' : undefined} size={15} aria-hidden="true" />
               Atualizar
             </button>
           </div>
@@ -242,9 +244,10 @@ export function Dashboard({ toggle }: { toggle: () => void }) {
             <Route
               path="*"
               element={
-                <section className="panel about-panel">
+                <section className="panel empty-page">
                   <h1>Página não encontrada</h1>
-                  <Link className="text-button" to="/">
+                  <p>O endereço acessado não corresponde a nenhuma página do painel.</p>
+                  <Link className="btn btn-secondary" to="/">
                     Voltar à visão geral
                   </Link>
                 </section>
@@ -253,31 +256,33 @@ export function Dashboard({ toggle }: { toggle: () => void }) {
           </Routes>
         </Suspense>
       </main>
-      <footer>
+      <footer className="site-footer">
         <div className="wrap footer-inner">
-          <span>
-            <span className="footer-mark">
-              <img src="/favicon-estacao.png" alt="" width="24" height="24" />
+          <div>
+            <span className="footer-brand">
+              <span className="footer-mark">
+                <img src="/favicon-estacao.png" alt="" width="20" height="20" />
+              </span>
+              {config.name}
             </span>
-            {config.name}
-          </span>
-          <span>Horário de Recife · Unidades métricas</span>
-        </div>
-        <nav className="wrap footer-repos" aria-label="Repositórios do projeto no GitHub">
+            <p>Horário de Recife · Unidades métricas</p>
+          </div>
+          <nav className="footer-repos" aria-label="Repositórios do projeto no GitHub">
           {[
             { repo: 'sesc-weather-dashboard', label: 'Código do painel' },
             { repo: 'projeto-sesc-API', label: 'Código da API' },
           ].map(({ repo, label }) => (
             <a key={repo} href={`https://github.com/m2atheus/${repo}`} target="_blank" rel="noopener noreferrer">
-              <svg width="21" height="21" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+              <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
                 <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82A7.65 7.65 0 0 1 8 3.86c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z" />
               </svg>
               {label}
-              <ArrowUpRight size={16} aria-hidden="true" />
+              <ArrowUpRight size={15} aria-hidden="true" />
               <span className="sr-only"> no GitHub (abre em nova aba)</span>
             </a>
           ))}
-        </nav>
+          </nav>
+        </div>
       </footer>
     </>
   )

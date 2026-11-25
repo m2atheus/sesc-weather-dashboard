@@ -6,7 +6,7 @@ import {
   Clock3,
   Activity,
 } from 'lucide-react'
-import partnership from '../../docs/imagens/parceria-ufrpe-uast-sesc.png'
+import partnership from '../assets/parceria-ufrpe-uast-sesc.png'
 
 export default function About() {
   return (
@@ -57,7 +57,7 @@ export default function About() {
             },
           ].map(({ icon: Icon, title, description }) => (
             <li key={title}>
-              <Icon size={22} />
+              <Icon size={22} aria-hidden="true" />
               <b>{title}</b>
               <p>{description}</p>
             </li>
@@ -68,17 +68,17 @@ export default function About() {
         <section className="panel about-panel">
           <h2>Sobre os dados</h2>
           <p>
-            <Clock3 size={19} />
+            <Clock3 size={19} aria-hidden="true" />
             Os horários seguem o fuso de Recife. O horário da medição indica
             quando a estação registrou a amostra.
           </p>
           <p>
-            <Ruler size={19} />
+            <Ruler size={19} aria-hidden="true" />
             Os valores usam unidades métricas. A chuva indica o acumulado
             informado pela estação.
           </p>
           <p>
-            <Activity size={19} />A atualização depende da comunicação. Lacunas
+            <Activity size={19} aria-hidden="true" />A atualização depende da comunicação. Lacunas
             podem ocorrer quando a estação ou um sensor deixa de transmitir.
           </p>
         </section>
@@ -87,7 +87,10 @@ export default function About() {
           <img
             src={partnership}
             alt="Parceria entre a UFRPE, Unidade Acadêmica de Serra Talhada (UAST), e o Sesc"
+            width="800"
+            height="450"
             loading="lazy"
+            decoding="async"
           />
         </section>
       </div>
