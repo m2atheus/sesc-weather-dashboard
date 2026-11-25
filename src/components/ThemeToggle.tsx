@@ -1,12 +1,18 @@
 import { useEffect, useState } from 'react'
+import { flushSync } from 'react-dom'
 import { Moon, Sun } from 'lucide-react'
 
 const storageKey = 'estacao-tema'
 const systemTheme = () => window.matchMedia?.('(prefers-color-scheme: dark)')
+const reducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
 
 function isDark() {
   const scheme = document.documentElement.style.colorScheme
   return scheme ? scheme === 'dark' : Boolean(systemTheme()?.matches)
+}
+
+type TransitionDocument = Document & {
+  startViewTransition?: (update: () => void) => unknown
 }
 
 export function ThemeToggle() {
@@ -32,13 +38,28 @@ export function ThemeToggle() {
 
   function toggle() {
     const theme = isDark() ? 'light' : 'dark'
-    document.documentElement.style.colorScheme = theme
-    setDark(theme === 'dark')
+    // Picking the system's own theme drops the override, so the page follows
+    // later system changes again (for example, automatic switching at night).
+    const followsSystem = (theme === 'dark') === Boolean(systemTheme()?.matches)
+    const root = document.documentElement
+    function apply() {
+      root.classList.add('theme-switching')
+      root.style.colorScheme = followsSystem ? '' : theme
+      flushSync(() => setDark(theme === 'dark'))
+      // Restore transitions only after the new colors have painted.
+      const release = () => root.classList.remove('theme-switching')
+      if (window.requestAnimationFrame) requestAnimationFrame(() => requestAnimationFrame(release))
+      else setTimeout(release)
+    }
     try {
-      localStorage.setItem(storageKey, theme)
+      if (followsSystem) localStorage.removeItem(storageKey)
+      else localStorage.setItem(storageKey, theme)
     } catch {
       // The choice still applies to the open page when storage is unavailable.
     }
+    const transition = document as TransitionDocument
+    if (transition.startViewTransition && !reducedMotion()) transition.startViewTransition(apply)
+    else apply()
   }
 
   return (

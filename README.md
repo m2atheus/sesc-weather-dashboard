@@ -26,6 +26,21 @@
 
 </div>
 
+## Sumário
+
+- [O problema](#o-problema)
+- [A solução](#solucao)
+- [As telas do painel](#telas)
+- [Instalação](#instalacao)
+  - [Pré-requisitos](#pré-requisitos)
+  - [API de leitura](#api-de-leitura)
+  - [Painel meteorológico](#painel-meteorológico)
+  - [Acesso pelo celular](#aplicativo-movel)
+  - [Validação e documentação](#validacao)
+- [Funcionalidades e regras de negócio](#regras-de-negocio)
+- [Contribuidores e licença](#contribuidores-licenca)
+  - [Alterações na interface](#interface)
+
 ## O problema
 
 Se o painel mostra **28 °C**, como saber se essa temperatura é de agora ou de ontem? A estação pode passar algumas horas sem transmitir e o computador ainda guardar a última medição. Para interpretar o número, é preciso conhecer a hora da leitura.
@@ -51,23 +66,26 @@ src/pages/        As três telas que você visita
 src/components/   Cartões, gráficos, menus e avisos
 src/data/         Consultas ao leitor e dados de demonstração
 src/utils/        Apresentação dos números, datas e horários
+src/assets/       Imagens importadas pelas telas, já reduzidas
+src/styles.css    Cores, tipografia, espaçamentos e o visual de cada tela
 public/           Símbolo da estação e imagens do painel
 docs/             Guias de integração e de instalação no SESC
 tests/            Verificações automáticas do funcionamento
 ```
 
-## Sumário
+<a id="telas"></a>
 
-- [O problema](#o-problema)
-- [A solução](#solucao)
-- [Instalação](#instalacao)
-  - [Pré-requisitos](#pré-requisitos)
-  - [API de leitura](#api-de-leitura)
-  - [Painel meteorológico](#painel-meteorológico)
-  - [Acesso pelo celular](#aplicativo-movel)
-  - [Validação e documentação](#validacao)
-- [Funcionalidades e regras de negócio](#regras-de-negocio)
-- [Contribuidores e licença](#contribuidores-licenca)
+## As telas do painel
+
+| Tela | O que mostra |
+| --- | --- |
+| **Visão geral** | A temperatura externa em destaque, com a hora da leitura, a máxima e a mínima do dia e a variação na última hora. Ao lado, o gráfico das últimas 24 horas. Abaixo, cartões de umidade, vento, chuva, pressão, radiação solar e índice UV. |
+| **Histórico** | No topo, escolha a **grandeza** (temperatura, umidade, vento…) e o **período**. O resumo logo abaixo considera o período inteiro. A série de medições mostra a página selecionada em gráfico ou tabela. **Exportar CSV** baixa o período escolhido. |
+| **Sobre** | O equipamento, o caminho que os dados percorrem até o painel e as instituições do projeto. |
+
+Acima de todas as telas fica a **linha da estação**: o estado da comunicação, a situação da API e o botão **Atualizar**. Clique no nome da estação para ver o modelo, o último contato e a fonte dos dados.
+
+**Tema claro e escuro.** O botão de lua ou sol no cabeçalho alterna o tema. Na primeira visita, o painel segue o tema do sistema do computador ou do celular. Uma escolha diferente da do sistema fica guardada no navegador. Ao voltar para o tema do sistema, o painel passa a acompanhá-lo de novo, inclusive quando o aparelho troca de tema sozinho à noite.
 
 <a id="instalacao"></a>
 
@@ -185,7 +203,7 @@ Nos testes locais, `localhost` significa **o aparelho que está abrindo a págin
 
 ### Validação e documentação
 
-**Para conferir pela tela**, abra a demonstração, observe a temperatura e a hora da leitura, entre em **Histórico** e alterne entre gráfico e tabela. O botão de lua ou sol no cabeçalho muda o tema. O navegador guarda essa preferência para a próxima visita.
+**Para conferir pela tela**, abra a demonstração, observe a temperatura e a hora da leitura, entre em **Histórico** e alterne entre gráfico e tabela. Repita nos dois temas, usando o botão de lua ou sol no cabeçalho, e com a janela estreita, como a de um celular.
 
 **Para conferir os arquivos do projeto**, abra o PowerShell na pasta do painel e execute:
 
@@ -214,7 +232,7 @@ O primeiro comando verifica exemplos de funcionamento, inclusive falhas de conex
 | **API e estação** | **API disponível** indica que o painel conseguiu consultar o leitor. **Sem comunicação** indica que a estação deixou de transmitir. Os dois avisos podem aparecer juntos. Se a API cair depois de uma consulta bem-sucedida, o painel pode manter a última leitura na tela, identificada como **Leitura em cache**, ou seja, uma cópia da leitura já recebida. |
 | **Zero e sensor sem leitura** | **0 mm** é uma medição de chuva igual a zero. **—** indica que o valor está ausente. A mesma regra vale para temperatura, vento e os demais sensores. |
 | **Temperatura** | A máxima e a mínima correspondem ao dia da leitura em Recife. Quando a leitura é antiga, o painel indica a data. A sensação térmica fica com travessão enquanto o equipamento não fornecer esse dado ao painel. **Variação em 1 hora** compara a leitura atual com a medição registrada mais próxima de uma hora antes, com tolerância de 15 minutos. Sem essa medição, o indicador não aparece. |
-| **Chuva e outras medidas** | A chuva é mostrada em milímetros (mm), a temperatura em graus Celsius (°C), a umidade em porcentagem (%), o vento em metros por segundo (m/s), a pressão em hectopascais (hPa) e a radiação solar em watts por metro quadrado (W/m²). O índice UV é um número sem unidade. |
+| **Chuva e outras medidas** | A chuva é mostrada em milímetros (mm), a temperatura em graus Celsius (°C), a umidade em porcentagem (%), o vento em metros por segundo (m/s), a pressão em hectopascais (hPa) e a radiação solar em watts por metro quadrado (W/m²). O índice UV é um número sem unidade. A direção do vento aparece em graus e pelo ponto cardeal mais próximo: N, NE, L (leste), SE, S, SO, O (oeste) e NO. |
 | **Gráfico recente** | Com registros recentes, o painel mostra as últimas 24 horas. Quando só há leituras antigas, **Exibindo último período ativo** identifica as 24 horas que terminam na última medição conhecida. Uma interrupção de mais de 30 minutos entre amostras deixa uma quebra no traçado. |
 | **Histórico e planilha** | Escolha 24 horas, 7 dias, 30 dias ou um intervalo personalizado. O resumo considera o período todo. O gráfico e a tabela do histórico mostram a página selecionada. **Exportar CSV** baixa um arquivo que pode ser aberto no Excel ou no LibreOffice. O limite padrão é de 5.000 registros por exportação. |
 | **Origem dos dados** | **Simulador** identifica uma estação de teste cadastrada no leitor. **Demonstração** identifica exemplos gerados no próprio painel. Uma falha de conexão não ativa os exemplos automaticamente. |
@@ -228,6 +246,16 @@ O primeiro comando verifica exemplos de funcionamento, inclusive falhas de conex
 O painel integra o projeto da **Estação Meteorológica SESC e UFRPE/UAST**. Para relatar um problema, conte qual aba abriu, o que fez e o que apareceu. Por exemplo: “Abri Histórico no celular, escolhi 7 dias e a tabela ficou vazia”. Se o problema envolver uma medição, inclua a data e a hora que aparecem no painel.
 
 Quem alterar o código pode conferir o resultado pelas verificações da seção [Validação e documentação](#validacao).
+
+<a id="interface"></a>
+
+### Alterações na interface
+
+- **Use as variáveis de `src/styles.css`.** Cores, tamanhos de texto, espaçamentos, cantos e sombras estão definidos no início do arquivo. Cada cor aparece uma única vez, no formato `light-dark(tema claro, tema escuro)`. Para mudar um tom, altere a variável em vez de escrever a cor dentro de um componente.
+- **Confira os dois temas e uma tela estreita**, de cerca de 360 px, antes de enviar a alteração.
+- **Não comunique nada só pela cor.** Erro, atraso, tendência e estado da estação também aparecem em texto ou ícone. Textos mantêm contraste mínimo de 4,5:1 com o fundo e bordas de campos, 3:1.
+- **Não preencha espaços com valores inventados.** Um sensor sem leitura mostra **—**, conforme as [regras de negócio](#regras-de-negocio).
+- **Imagens leves nas telas.** O cabeçalho usa `public/estacao-marca.png` e a página Sobre usa a versão de `src/assets/`. Os originais em alta resolução, `public/estacao-meteorologica.png` e `docs/imagens/`, ficam para este leia-me.
 
 <a id="licenca"></a>
 
