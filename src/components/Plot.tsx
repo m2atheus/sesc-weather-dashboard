@@ -22,8 +22,8 @@ const dateShort = new Intl.DateTimeFormat('pt-BR', {
 const tooltip = {
   padding: '8px 12px',
   borderRadius: 8,
-  backgroundColor: 'var(--surface)',
-  border: '1px solid var(--line)',
+  backgroundColor: 'var(--surface-raised)',
+  border: '1px solid var(--popover-line)',
   color: 'var(--ink)',
   fontSize: 13,
 }
